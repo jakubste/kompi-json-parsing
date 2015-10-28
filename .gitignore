@@ -1,3 +1,7 @@
+# ply stuff
+parsetab.py
+*.out
+
 # PyCharm stuff
 .idea/
 
