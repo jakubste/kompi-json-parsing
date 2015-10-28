@@ -67,7 +67,9 @@ JSON_TOKENS = [
     'LINE_FEED_CHAR',
     'CARRIAGE_RETURN_CHAR',
     'TAB_CHAR',
-    'UNICODE_HEX'
+    'UNICODE_HEX',
+    'COMMENT_BEGIN',
+    'NEW_LINE'
 ]
 
 
@@ -100,7 +102,8 @@ class JsonLexer(object):
     #     A single-use state that treats the next character literally.
     states = (
         ('string', 'exclusive'),
-        ('escaped', 'exclusive')
+        ('escaped', 'exclusive'),
+        ('comment', 'exclusive'),
     )
 
     def t_ANY_error(self, t):
@@ -131,6 +134,32 @@ class JsonLexer(object):
     t_MINUS = r'\x2D'  # '-'
     t_PLUS = r'\x2B'  # '+'
     t_ZERO = r'\x30'  # '0'
+
+
+    # t_COMMENT = r'//'
+    # t_BEGIN_COMMENT_BLOCK = r'/*'
+    # t_END_COMMENT_BLOCK = r'*/'
+
+
+    # Enters the comment state on an opening quotation mark
+    def t_COMMENT_BEGIN(self, t):
+        r"""//"""  # '//'
+        t.lexer.push_state('comment')
+        return t
+
+    # Don't skip over any tokens inside the comment state
+    t_comment_ignore = ''
+
+    def t_comment_NEW_LINE(self, t):
+        r"""\n"""  # '\n'
+        t.lexer.pop_state()
+        return t
+
+    def t_comment_UNESCAPED(self, t):
+        r"""[\x20-\x21,\x23-\x5B,\x5D-\xFF]+"""
+        t.value = unicode(t.value, encoding='utf8')
+        return t
+
 
     # Enters the string state on an opening quotation mark
     def t_QUOTATION_MARK(self, t):
@@ -275,7 +304,8 @@ class JsonParser(object):
         """value : object
                  | array
                  | number
-                 | string"""
+                 | string
+                 | comment"""
         p[0] = p[1]
 
     def p_value_false(self, p):
@@ -296,12 +326,20 @@ class JsonParser(object):
 
     def p_members(self, p):
         """members :
+                   | members member VALUE_SEPARATOR comment
+                   | members member comment
                    | members member VALUE_SEPARATOR
-                   | members member"""
+                   | members member
+                   """
         if len(p) == 1:
             p[0] = list()
         else:
             p[1].append(p[2])
+            if len(p) > 3 and p[3].__class__ == {}.__class__:
+                p[1].append((p[2][0]+'-comment', p[3]['comment']))
+            if len(p) > 4 and p[4].__class__ == {}.__class__:
+                p[1].append((p[2][0]+'-comment', p[4]['comment'])) # eeee, macarena!
+
             p[0] = p[1]
 
     def p_member(self, p):
@@ -311,10 +349,16 @@ class JsonParser(object):
     def p_values(self, p):
         """values :
                   | values value VALUE_SEPARATOR
-                  | values value"""
+                  | values value
+                  | values value VALUE_SEPARATOR comment
+                  | values value comment"""
         if len(p) == 1:
             p[0] = list()
         else:
+            if len(p) > 3 and p[3].__class__ == {}.__class__:
+                p[2].update(p[3])
+            if len(p) > 4 and p[4].__class__ == {}.__class__:
+                p[2].update(p[4])
             p[1].append(p[2])
             p[0] = p[1]
 
@@ -377,6 +421,10 @@ class JsonParser(object):
     def p_string(self, p):
         """string : QUOTATION_MARK chars QUOTATION_MARK"""
         p[0] = p[2]
+
+    def p_comment(self, p):
+        """comment : COMMENT_BEGIN chars NEW_LINE"""
+        p[0] = {'comment': p[2]}
 
     def p_chars(self, p):
         """chars :
