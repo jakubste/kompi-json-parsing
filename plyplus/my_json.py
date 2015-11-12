@@ -21,6 +21,30 @@ WS: '[ \t\n]+' (%ignore) (%newline);
 """)
 
 
+# ***** Mniej produkcji, ale problem z rekursja: *****
+
+# json_grammar = Grammar(r"""
+# @start: supervalue ;
+#
+# ?supervalue : comment supervalue | supervalue comment | value;
+# value : object | array | string | number | boolean | null ;
+# ?comment : one_line_comment | mulitline_comment ;
+#
+# string : '".*?(?<!\\)(\\\\)*?"' ;
+# number : '-?([1-9]\d*|\d)(\.\d+)?([eE][+-]?\d+)?' ;
+# pair : ( comment )* string ':' supervalue ( comment )* ;
+# object : '\{' ( pair ( ',' pair )* )? '\}' ;
+# array : '\[' ( supervalue ( ',' supervalue ) * )? '\]' ;
+# boolean : 'true' | 'false' ;
+# null : 'null' ;
+#
+# one_line_comment : '//.*\n';
+# mulitline_comment: '/\*(.|\n)*?\*/';
+#
+# WS: '[ \t\n]+' (%ignore) (%newline);
+# """)
+
+
 
 class JSON_Transformer(STransformer):
     """Transforms JSON AST into Python native objects."""
@@ -32,9 +56,9 @@ class JSON_Transformer(STransformer):
     pair = lambda self, node: {node.tail[0]: node.tail[1]}
     one_line_comment = lambda self, node: node.tail[0][2:-1]
     mulitline_comment = lambda self, node: node.tail[0][2:-2].replace('\t', '')
-
-    def object(self, node):
-        return node.tail
+    value = lambda self, node: node.tail[0]
+    supervalue = lambda self, node: node.tail
+    object = lambda self, node: node.tail
 
 
 def json_parse(json_string):
