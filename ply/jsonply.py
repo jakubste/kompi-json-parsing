@@ -69,8 +69,10 @@ JSON_TOKENS = [
     'TAB_CHAR',
     'UNICODE_HEX',
     'COMMENT_BEGIN',
-    'NEW_LINE'
-]
+    'NEW_LINE',
+    'MULTILINE_BEGIN',
+    'MULTILINE_END'
+    ]
 
 
 class JsonLexer(object):
@@ -104,6 +106,7 @@ class JsonLexer(object):
         ('string', 'exclusive'),
         ('escaped', 'exclusive'),
         ('comment', 'exclusive'),
+        ('multilinecomment', 'exclusive'),
     )
 
     def t_ANY_error(self, t):
@@ -160,11 +163,39 @@ class JsonLexer(object):
         t.value = unicode(t.value, encoding='utf8')
         return t
 
+
+    # Enters the multilinecomment state on an opening quotation mark
+    def t_MULTILINE_BEGIN(self, t):
+        r"""/\*"""
+        t.lexer.push_state('multilinecomment')
+        return t
+
+    t_multilinecomment_ignore = '\t\n'
+
+    # regexp shackowany, zeby puszczal * i /
+    def t_multilinecomment_UNESCAPED(self, t):
+        r"""[\x20-\x21,\x23-\x29,\x2B-\x2E,\x30-\x5B,\x5D-\xFF]+"""
+        t.value = unicode(t.value, encoding='utf8')
+        return t
+
+    def t_multilinecomment_NEW_LINE(self, t):
+        r"""\n"""  # '\n'
+        t.value = ' '
+        return t
+
+
+    def t_multilinecomment_MULTILINE_END(self, t):
+        r"""\x2A\x2F"""
+        t.lexer.pop_state()
+        return t
+
+
     # Enters the string state on an opening quotation mark
     def t_QUOTATION_MARK(self, t):
         r"""\x22"""  # '"'
         t.lexer.push_state('string')
         return t
+
 
     # Don't skip over any tokens inside the string state
     t_string_ignore = ''
@@ -323,7 +354,6 @@ class JsonParser(object):
 
     def p_object(self, p):
         """object : BEGIN_OBJECT members END_OBJECT"""
-        print p[2]
         p[0] = dict(p[2])
 
     def p_members(self, p):
@@ -344,10 +374,8 @@ class JsonParser(object):
         """
 
         if len(p) == 4:
-            print 'a', p[1], p[3]
             p[0] = (p[1], p[3])
         else:
-            print 'b', p[1]
             p[0] = p[1]
 
     def p_values(self, p):
@@ -422,7 +450,10 @@ class JsonParser(object):
         p[0] = p[2]
 
     def p_comment(self, p):
-        """comment : COMMENT_BEGIN chars NEW_LINE"""
+        """comment :
+                    | COMMENT_BEGIN chars NEW_LINE
+                    | MULTILINE_BEGIN chars MULTILINE_END
+                    """
         p[0] = ('comment' + str(self.comment_number), p[2])
         self.comment_number += 1
 
