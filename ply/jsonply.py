@@ -160,7 +160,6 @@ class JsonLexer(object):
         t.value = unicode(t.value, encoding='utf8')
         return t
 
-
     # Enters the string state on an opening quotation mark
     def t_QUOTATION_MARK(self, t):
         r"""\x22"""  # '"'
@@ -271,6 +270,8 @@ class JsonParser(object):
     python data structure that represents the input data.
     """
 
+    comment_number = 0
+
     def __init__(self, lexer=None, **kwargs):
         """Constructs the JsonParser based on the grammar contained herein.
 
@@ -322,12 +323,11 @@ class JsonParser(object):
 
     def p_object(self, p):
         """object : BEGIN_OBJECT members END_OBJECT"""
+        print p[2]
         p[0] = dict(p[2])
 
     def p_members(self, p):
         """members :
-                   | members member VALUE_SEPARATOR comment
-                   | members member comment
                    | members member VALUE_SEPARATOR
                    | members member
                    """
@@ -335,30 +335,29 @@ class JsonParser(object):
             p[0] = list()
         else:
             p[1].append(p[2])
-            if len(p) > 3 and p[3].__class__ == {}.__class__:
-                p[1].append((p[2][0]+'-comment', p[3]['comment']))
-            if len(p) > 4 and p[4].__class__ == {}.__class__:
-                p[1].append((p[2][0]+'-comment', p[4]['comment'])) # eeee, macarena!
-
             p[0] = p[1]
 
     def p_member(self, p):
-        """member : string NAME_SEPARATOR value"""
-        p[0] = (p[1], p[3])
+        """member :
+                    | string NAME_SEPARATOR value
+                    | comment
+        """
+
+        if len(p) == 4:
+            print 'a', p[1], p[3]
+            p[0] = (p[1], p[3])
+        else:
+            print 'b', p[1]
+            p[0] = p[1]
 
     def p_values(self, p):
         """values :
-                  | values value VALUE_SEPARATOR
-                  | values value
-                  | values value VALUE_SEPARATOR comment
-                  | values value comment"""
+              | values value VALUE_SEPARATOR
+              | values value
+              """
         if len(p) == 1:
             p[0] = list()
         else:
-            if len(p) > 3 and p[3].__class__ == {}.__class__:
-                p[2].update(p[3])
-            if len(p) > 4 and p[4].__class__ == {}.__class__:
-                p[2].update(p[4])
             p[1].append(p[2])
             p[0] = p[1]
 
@@ -424,7 +423,8 @@ class JsonParser(object):
 
     def p_comment(self, p):
         """comment : COMMENT_BEGIN chars NEW_LINE"""
-        p[0] = {'comment': p[2]}
+        p[0] = ('comment' + str(self.comment_number), p[2])
+        self.comment_number += 1
 
     def p_chars(self, p):
         """chars :
