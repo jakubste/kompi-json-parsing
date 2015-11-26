@@ -1,44 +1,46 @@
 [
-  //komentarz
-  {
-    "color": "red",
+  // komentarz
+  {"color": "red",
+
+
+
     // kek lol
-    // lol
+        // lol
+
     // wolololo
     "value": "#f00"
+
     // top kek
-  },
-  //Dd
+
+       },
+
+  // Dd
   {
     "color": "green",
-    //zielono
+    // zielono
+
+
     /* lakukaracza
     w gorace wkraczam */
     "value": "#0f0"
     // rgbzielony
   },
+          {
+            "color": "magenta",
+
+"value": "#f0f"
+          },
   {
-    "color": "blue",
-    "value": "#00f"
-  },
-  {
-    "color": "cyan",
-    "value": "#0ff"
-  },
-  {
-    "color": "magenta",
-    "value": "#f0f"
-  },
-  {
-    "color": "yellow",
+                "color": "yellow",
+
     "value": "#ff0"
-  },
+                },
   {
-    "color": "black",
+               "color": "black",
     "value": "#000"
   },
-  // XD
+                  // XD
 
-  [1,2,3,4,5]
+        [1,2,3,4,5]
 
 ]

@@ -170,7 +170,7 @@ class JsonLexer(object):
         t.lexer.push_state('multilinecomment')
         return t
 
-    t_multilinecomment_ignore = '\t\n'
+    t_multilinecomment_ignore = '\t\r\n'
 
     # regexp shackowany, zeby puszczal * i /
     def t_multilinecomment_UNESCAPED(self, t):
@@ -179,8 +179,8 @@ class JsonLexer(object):
         return t
 
     def t_multilinecomment_NEW_LINE(self, t):
-        r"""\n"""  # '\n'
-        t.value = ' '
+        r"""\n"""
+        t.value = '\n'
         return t
 
 
@@ -534,14 +534,44 @@ def parse_file(f):
     return parse(f.read())
 
 
+def parse_dict(dict, e):
+    print '\t'*e, '{'
+    for k,v in dict.items():
+        if 'comment' in k:
+            if not '\n' in v:
+                print '\t'*(e+1), '//' + v
+            else:
+                print '\t'*(e+1), '/*', v, '*/'
+        else:
+            print '\t'*(e+1), k+':', v
+    print '\t'*e, '}'
+
+
 def main(argv):
     """Parses JSON files or stdin and prints the python data structure."""
     if len(argv) > 1:
         for filename in argv[1:]:
-            print parse_file(open(filename))
+            list = parse_file(open(filename))
     else:
-        print parse_file(sys.stdin)
+        list = parse_file(sys.stdin)
 
+    print list
+    print '{'
+    e=0
+    for elem in list:
+        if elem.__class__ == {}.__class__:
+            parse_dict(elem, e)
+        else:
+            try:
+                if 'comment' in elem[0]:
+                    if not '\n' in elem[1]:
+                        print '\t'*e, '//' + elem[1]
+                    else:
+                        print '\t'*e, '/*', elem[1], '*/'
+            except:
+                print '\t'*e, elem
+
+    print '}'
 
 if __name__ == '__main__':
     main(sys.argv)
